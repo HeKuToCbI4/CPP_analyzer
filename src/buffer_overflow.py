@@ -29,4 +29,11 @@ class BufOverflowParser(base_parser.BaseParser):
                 if match.group(1) != ' ':
                     self.output.append(base_parser.warning(line_counter, str(line), self.vuln_name, 'WARNING', 'Usage of raw arrays. Possible bufferoveflow'))
         return self.output
-            
+
+
+if __name__ == "__main__":
+    with open("../tests/bufover_test.cpp") as file:
+        parser = BufOverflowParser()
+        out = parser.parse(file)
+        for state in out:
+            print(state)
