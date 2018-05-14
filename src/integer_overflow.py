@@ -6,8 +6,8 @@ from collections import namedtuple
 
 Limit = namedtuple('Limit', 'min max')
 Variable = namedtuple('Variable', 'type value')
-regex_declaration = r"^\s*(extern\s+)?(unsigned|signed)?\s*(const\s+)?(int|short|char|long|byte)[\s*]([\w:<>]*)\s?=\s?(\d*).*(;)"
-regex_arithmetic = r"^\s*([\w:<>]*)\s*=\s*([\w:<>]*|\d*)\s*(\+|\-|\*|/)?\s*([\w:<>]*|\d*).*(;)"
+regex_declaration = r"^\s*[extern\s]+?[unsigned|signed\s]*[const\s+]?(int|short|char|long|byte)[\s*]([\w:<>]*)\s?=\s?(\d*).*;"
+regex_arithmetic = r"^\s*([\w:<>]*)\s*=\s*([\w:<>]*|\d*)\s*(\+|\-|\*|\/)?\s*([\w:<>]*|\d*).*;"
 # LP64 standard
 limits = {'int': Limit(-2 ** 31, 2 ** 31 - 1),
           'byte': Limit(-2 ** 15, 2 ** 15 - 1),
@@ -29,33 +29,37 @@ class IntegerOverflowParser(base_parser.BaseParser):
             matches = re.finditer(regex_declaration, line, re.IGNORECASE)
             for matchNum, match in enumerate(matches):
                 matchNum = matchNum + 1
-                variables[match.group(5)] = Variable(match.group(4), int(match.group(6)))
+                variables[match.group(2)] = Variable(match.group(1), int(match.group(3)))
 
             arithmetic_matches = re.finditer(regex_arithmetic, line, re.IGNORECASE)
             for matchNum, match in enumerate(arithmetic_matches):
                 matchNum = matchNum + 1
-                if match.group(3) is None:
-                    variables[match.group(1)] = variables[match.group(1)]._replace(
-                        value=int(match.group(2)) if match.group(2).isdigit() else variables[match.group(2)].value)
-                else:
-                    left = int(match.group(2)) if match.group(2).isdigit() else variables[match.group(2)].value
-                    right = int(match.group(4)) if match.group(4).isdigit() else variables[match.group(4)].value
-                    if match.group(3) == '*':
-                        tmp = left * right
-                    elif match.group(3) == '+':
-                        tmp = left + right
-                    elif match.group(3) == '-':
-                        tmp = left - right
+                if match.group(2).isdigit() or match.group(2) in variables.keys():
+                    if match.group(3) is None:
+                        if match.group(1) not in variables.keys():
+                            variables[match.group(1)] = Variable('int', 0)
+                        variables[match.group(1)] = variables[match.group(1)]._replace(
+                                value=int(match.group(2)) if match.group(2).isdigit() else variables[
+                                    match.group(2)].value)
                     else:
-                        tmp = left // right
-                    variables[match.group(1)] = variables[match.group(1)]._replace(value=tmp)
-                try:
-                    assert (limits[variables[match.group(1)].type].min <= variables[match.group(1)].value <= limits[
-                    variables[match.group(1)].type].max)
-                except AssertionError:
-                    error_details = '{} of type {}'.format(match.group(1), variables[match.group(1)].type)
-                    self.output.append(base_parser.warning(line_counter, str(line), self.vuln_name, 'WARNING',
-                                                   f'Integer overflow for {error_details}'))
+                        left = int(match.group(2)) if match.group(2).isdigit() else variables[match.group(2)].value
+                        right = int(match.group(4)) if match.group(4).isdigit() else variables[match.group(4)].value
+                        if match.group(3) == '*':
+                            tmp = left * right
+                        elif match.group(3) == '+':
+                            tmp = left + right
+                        elif match.group(3) == '-':
+                            tmp = left - right
+                        else:
+                            tmp = left // right
+                        variables[match.group(1)] = variables[match.group(1)]._replace(value=tmp)
+                    try:
+                        assert (limits[variables[match.group(1)].type].min <= variables[match.group(1)].value <= limits[
+                            variables[match.group(1)].type].max)
+                    except AssertionError:
+                        error_details = '{} of type {}'.format(match.group(1), variables[match.group(1)].type)
+                        self.output.append(base_parser.warning(line_counter, str(line), self.vuln_name, 'WARNING',
+                                                               f'Integer overflow for {error_details}'))
         return self.output
 
 
