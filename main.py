@@ -7,6 +7,8 @@ from src.format_string import FormatStringParser
 from src.sql_injection import SQLInjectionParser
 from src.crypto_gen import RandomGenParser
 from src.exec_of_commands import ExecOfCommands
+from src.race_condition import RaceConditionParser
+from src.integer_overflow import IntegerOverflowParser
 
 HANDLER = {
     "Buffer Overflow": BufOverflowParser,
@@ -17,9 +19,10 @@ HANDLER = {
     # "Bad Data Storage Management":		None,
     # "Data Leak":						None,
     "Not Crypto-resistant Algorithms": RandomGenParser,
-    # "Integer Overflow":				None,
-    # "Race Condition":					None,
-    # "Readers–writers problem":			None
+    "Integer Overflow":				IntegerOverflowParser,
+    "Race Condition":					RaceConditionParser,
+    # "Readers–writers problem":			None,
+    # "Locked Mutexes problem":         None
 }
 
 
@@ -29,11 +32,11 @@ def commentRemover(text):
     replacer = lambda match: None if match.group(0).startswith('/') else match.group(0)
     return re.sub(pattern, replacer, text)
 
+if __name__ == '__main__':
+    from re import match
 
-from re import match
+    CLEAN_CODE = lambda program: [line.lstrip() for line in commentRemover(open(program, 'r').read()).splitlines() if
+                                  not match(r'^\s*$', line)]
 
-CLEAN_CODE = lambda program: [line.lstrip() for line in commentRemover(open(program, 'r').read()).splitlines() if
-                              not match(r'^\s*$', line)]
-
-ui = UI(HANDLER.keys())  #
-ui.StartMain(lambda vulnerability, program: HANDLER[vulnerability]().parse(CLEAN_CODE(program)))
+    ui = UI(HANDLER.keys())  #
+    ui.StartMain(lambda vulnerability, program: HANDLER[vulnerability]().parse(CLEAN_CODE(program)))
